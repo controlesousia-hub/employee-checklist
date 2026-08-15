@@ -8,17 +8,34 @@ export default function NotificationBell() {
   const [unread, setUnread] = useState(0);
 
   const load = useCallback(async () => {
-    const { count } = await supabase
+    const { count, error } = await supabase
       .from('notifications')
       .select('*', { count: 'exact', head: true })
       .eq('read', false);
-    setUnread(count ?? 0);
+    
+    if (!error) {
+      setUnread(count ?? 0);
+    }
   }, []);
 
   useEffect(() => {
     load();
-    const interval = setInterval(load, 15000);
-    return () => clearInterval(interval);
+    
+    // Subscription en temps réel avec Supabase Realtime
+    const channel = supabase
+      .channel('notifications-channel')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'notifications' },
+        () => {
+          load();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [load]);
 
   return (

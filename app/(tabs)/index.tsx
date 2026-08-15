@@ -1,51 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 import TaskCard, { Task, TaskStatus } from '../../components/TaskCard';
-import { supabase } from '../../lib/supabase';
 import NotificationBell from '../../components/NotificationBell';
+import { useTasks } from '../../hooks/useTasks';
 
 export default function DashboardScreen() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const { tasks, loading, refresh, changeStatus } = useTasks({ enabled: true });
+  const [refreshing, setRefreshing] = React.useState(false);
 
-  const fetchTasks = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('tasks')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      if (data) {
-        setTasks(data as Task[]);
-      }
-    } catch (err) {
-      console.error('Erreur lors du chargement des tâches :', err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchTasks();
-  }, []);
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    refresh().finally(() => setRefreshing(false));
+  }, [refresh]);
 
   const handleStatusChange = async (id: string, newStatus: TaskStatus) => {
-    setTasks(current =>
-      current.map(task => (task.id === id ? { ...task, status: newStatus } : task))
-    );
-
-    const { error } = await supabase
-      .from('tasks')
-      .update({ status: newStatus })
-      .eq('id', id);
-
-    if (error) {
-      console.error('Erreur lors de la mise à jour BDD :', error);
-      fetchTasks();
-    }
+    await changeStatus(id, newStatus);
   };
 
   const progress = tasks.length === 0
@@ -84,11 +53,13 @@ export default function DashboardScreen() {
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={() => {
-                setRefreshing(true);
-                fetchTasks();
-              }}
+              onRefresh={onRefresh}
             />
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Aucune tâche pour le moment</Text>
+            </View>
           }
         />
       )}
@@ -153,5 +124,14 @@ const styles = StyleSheet.create({
   },
   list: {
     padding: 16,
+  },
+  emptyContainer: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#64748B',
+    textAlign: 'center',
   },
 });
