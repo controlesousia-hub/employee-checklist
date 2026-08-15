@@ -1,47 +1,4 @@
 ```
-# Dependencies
-node_modules/
-
-# Environment
-.env
-.env.local
-.env.*
-
-# Logs and temp files
-*.log
-*.tmp
-
 # Editors
 .vscode/
-.idea/
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Build outputs
-dist/
-build/
-*.min.js
-*.bundle.js
-
-# OS generated files
-.DS_Store
-Thumbs.db
-
-# Coverage
-coverage/
-htmlcov/
-.coverage
-
-# IDE
-.vs/
-*.swp
-*.swo
-
-# Temporary
-*.tmp
-*.temp
 ```
