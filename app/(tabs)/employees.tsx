@@ -7,12 +7,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import EmployeeCard, { Employee } from '../../components/EmployeeCard';
-import type { Department } from '../../components/TaskCard';
 import { supabase } from '../../lib/supabase';
 
 interface TemplateOption {
   id: string;
   name: string;
+  type: 'ONBOARDING' | 'OFFBOARDING';
 }
 
 export default function EmployeesScreen() {
@@ -43,12 +43,14 @@ export default function EmployeesScreen() {
   const fetchTemplates = useCallback(async () => {
     const { data } = await supabase
       .from('templates')
-      .select('id, name')
+      .select('id, name, type')
       .order('created_at');
 
-    if (data && data.length > 0) {
-      setTemplates(data as TemplateOption[]);
-      setSelectedTemplateId(data[0].id);
+    if (data) {
+      // À la création d'un employé, on ne propose que les templates d'ONBOARDING
+      const onboarding = (data as TemplateOption[]).filter(t => t.type === 'ONBOARDING');
+      setTemplates(onboarding);
+      if (onboarding.length > 0) setSelectedTemplateId(onboarding[0].id);
     }
   }, []);
 
@@ -88,7 +90,6 @@ export default function EmployeesScreen() {
       return;
     }
 
-    // Génération automatique des tâches depuis le template choisi
     let generated = 0;
     if (selectedTemplateId !== 'NONE') {
       const { data: items } = await supabase
@@ -100,9 +101,10 @@ export default function EmployeesScreen() {
       if (items && items.length > 0) {
         const tasksToInsert = items.map(it => ({
           title: it.title,
-          department: it.department as Department,
+          department: it.department,
           employee_name: emp.full_name,
           status: 'TODO' as const,
+          workflow: 'ONBOARDING' as const,
         }));
 
         const { error: tasksError } = await supabase.from('tasks').insert(tasksToInsert);
@@ -120,7 +122,7 @@ export default function EmployeesScreen() {
     Alert.alert(
       'Succès',
       generated > 0
-        ? `Employé créé • ${generated} tâches générées automatiquement`
+        ? `Employé créé • ${generated} tâches d'onboarding générées`
         : 'Employé créé'
     );
   };
@@ -173,7 +175,7 @@ export default function EmployeesScreen() {
               <Text style={styles.label}>Date d'arrivée (AAAA-MM-JJ)</Text>
               <TextInput style={styles.input} placeholder="ex: 2025-09-01" value={startDate} onChangeText={setStartDate} />
 
-              <Text style={styles.label}>Template de checklist</Text>
+              <Text style={styles.label}>Template d'onboarding</Text>
               <ScrollView horizontal showsVerticalScrollIndicator={false} style={{ marginBottom: 16 }}>
                 <View style={styles.templateRow}>
                   <TouchableOpacity

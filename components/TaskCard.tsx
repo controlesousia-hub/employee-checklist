@@ -10,6 +10,7 @@ export interface Task {
   department: Department;
   status: TaskStatus;
   employee_name: string;
+  workflow?: 'ONBOARDING' | 'OFFBOARDING' | 'CUSTOM';
 }
 
 interface TaskCardProps {

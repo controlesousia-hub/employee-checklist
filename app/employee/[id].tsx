@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +17,7 @@ export default function EmployeeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [loadingEmployee, setLoadingEmployee] = useState(true);
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -26,21 +27,94 @@ export default function EmployeeDetailScreen() {
     })();
   }, [id]);
 
-  const { tasks, loading, changeStatus } = useTasks({
+  const { tasks, loading, changeStatus, refresh } = useTasks({
     employeeName: employee?.full_name,
     enabled: !!employee,
   });
 
-  const progress = tasks.length === 0
-    ? 0
-    : Math.round((tasks.filter(t => t.status === 'DONE').length / tasks.length) * 100);
+  const isOffboarding = employee?.status === 'OFFBOARDING' || employee?.status === 'OFFBOARDED';
 
-  const handleStatusChange = async (newStatus: EmployeeStatus) => {
+  const visibleTasks = tasks.filter(t =>
+    isOffboarding ? t.workflow === 'OFFBOARDING' : t.workflow !== 'OFFBOARDING'
+  );
+
+  const progress = visibleTasks.length === 0
+    ? 0
+    : Math.round((visibleTasks.filter(t => t.status === 'DONE').length / visibleTasks.length) * 100);
+
+  const allDone = visibleTasks.length > 0 && visibleTasks.every(t => t.status === 'DONE');
+
+  const updateEmployeeStatus = async (newStatus: EmployeeStatus) => {
     if (!employee) return;
     const previous = employee;
     setEmployee({ ...employee, status: newStatus });
     const { error } = await supabase.from('employees').update({ status: newStatus }).eq('id', employee.id);
     if (error) setEmployee(previous);
+  };
+
+  const handleValidate = () => {
+    if (!employee) return;
+    if (employee.status === 'ONBOARDING') {
+      Alert.alert("Valider l'onboarding", 'Passer cet employé en "Actif" ?', [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Valider', onPress: () => updateEmployeeStatus('ACTIVE') },
+      ]);
+    } else if (employee.status === 'OFFBOARDING') {
+      Alert.alert('Valider le départ', 'Marquer cet employé comme "Parti" ?', [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Valider', onPress: () => updateEmployeeStatus('OFFBOARDED') },
+      ]);
+    }
+  };
+
+  const handleStartOffboarding = () => {
+    if (!employee) return;
+    Alert.alert(
+      "Démarrer l'offboarding",
+      'Générer la checklist de départ et passer l\'employé en "Offboarding" ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Démarrer',
+          onPress: async () => {
+            setGenerating(true);
+            try {
+              const { data: tpl } = await supabase
+                .from('templates')
+                .select('id')
+                .eq('type', 'OFFBOARDING')
+                .limit(1)
+                .maybeSingle();
+
+              if (tpl) {
+                const { data: items } = await supabase
+                  .from('template_items')
+                  .select('title, department, sort_order')
+                  .eq('template_id', tpl.id)
+                  .order('sort_order');
+
+                if (items && items.length > 0) {
+                  await supabase.from('tasks').insert(
+                    items.map(it => ({
+                      title: it.title,
+                      department: it.department,
+                      employee_name: employee.full_name,
+                      status: 'TODO',
+                      workflow: 'OFFBOARDING',
+                    }))
+                  );
+                }
+              }
+
+              await updateEmployeeStatus('OFFBOARDING');
+              refresh();
+            } finally {
+              setGenerating(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (loadingEmployee) {
@@ -83,7 +157,7 @@ export default function EmployeeDetailScreen() {
                     borderColor: EMPLOYEE_STATUS_COLORS[status],
                   },
                 ]}
-                onPress={() => handleStatusChange(status)}
+                onPress={() => updateEmployeeStatus(status)}
               >
                 <Text style={[styles.statusChipText, employee.status === status && styles.statusChipTextActive]}>
                   {EMPLOYEE_STATUS_LABELS[status]}
@@ -93,9 +167,18 @@ export default function EmployeeDetailScreen() {
           </View>
         </View>
 
+        {isOffboarding && (
+          <View style={styles.workflowBanner}>
+            <Ionicons name="exit-outline" size={18} color="#B45309" />
+            <Text style={styles.workflowBannerText}>Workflow Offboarding en cours</Text>
+          </View>
+        )}
+
         <View style={styles.progressCard}>
           <View style={styles.progressLabelRow}>
-            <Text style={styles.progressLabel}>Avancement onboarding</Text>
+            <Text style={styles.progressLabel}>
+              {isOffboarding ? 'Avancement offboarding' : 'Avancement onboarding'}
+            </Text>
             <Text style={styles.progressPercent}>{progress}%</Text>
           </View>
           <View style={styles.progressBar}>
@@ -103,14 +186,49 @@ export default function EmployeeDetailScreen() {
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Tâches ({tasks.length})</Text>
+        <Text style={styles.sectionTitle}>
+          {isOffboarding ? 'Checklist de départ' : 'Tâches'} ({visibleTasks.length})
+        </Text>
         {loading ? (
           <ActivityIndicator size="large" color="#2563EB" />
-        ) : tasks.length === 0 ? (
+        ) : visibleTasks.length === 0 ? (
           <Text style={styles.emptyText}>Aucune tâche pour cet employé pour le moment.</Text>
         ) : (
-          tasks.map(task => <TaskCard key={task.id} task={task} onStatusChange={changeStatus} />)
+          visibleTasks.map(task => <TaskCard key={task.id} task={task} onStatusChange={changeStatus} />)
         )}
+
+        <View style={styles.actions}>
+          {employee.status === 'ONBOARDING' && allDone && (
+            <TouchableOpacity style={styles.validateButton} onPress={handleValidate}>
+              <Ionicons name="checkmark-circle" size={20} color="#ffffff" />
+              <Text style={styles.validateText}>Valider l'onboarding → Actif</Text>
+            </TouchableOpacity>
+          )}
+
+          {employee.status === 'OFFBOARDING' && allDone && (
+            <TouchableOpacity style={styles.validateButton} onPress={handleValidate}>
+              <Ionicons name="checkmark-circle" size={20} color="#ffffff" />
+              <Text style={styles.validateText}>Valider le départ → Parti</Text>
+            </TouchableOpacity>
+          )}
+
+          {(employee.status === 'ACTIVE' || employee.status === 'ONBOARDING') && (
+            <TouchableOpacity
+              style={styles.offboardingButton}
+              onPress={handleStartOffboarding}
+              disabled={generating}
+            >
+              {generating ? (
+                <ActivityIndicator color="#DC2626" />
+              ) : (
+                <>
+                  <Ionicons name="exit-outline" size={20} color="#DC2626" />
+                  <Text style={styles.offboardingText}>Démarrer l'offboarding</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -133,6 +251,11 @@ const styles = StyleSheet.create({
   statusChip: { borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
   statusChipText: { fontSize: 12, fontWeight: '600', color: '#475569' },
   statusChipTextActive: { color: '#ffffff' },
+  workflowBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: '#FEF3C7', borderRadius: 12, padding: 12, marginBottom: 12,
+  },
+  workflowBannerText: { fontSize: 13, fontWeight: '600', color: '#B45309' },
   progressCard: { backgroundColor: '#F1F5F9', borderRadius: 12, padding: 14, marginBottom: 16 },
   progressLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   progressLabel: { fontSize: 14, fontWeight: '600', color: '#475569' },
@@ -141,4 +264,16 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', backgroundColor: '#2563EB', borderRadius: 5 },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#0F172A', marginBottom: 10 },
   emptyText: { fontSize: 14, color: '#64748B', textAlign: 'center', marginTop: 10 },
+  actions: { marginTop: 20, gap: 10 },
+  validateButton: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: '#2563EB', paddingVertical: 14, borderRadius: 12,
+  },
+  validateText: { color: '#ffffff', fontWeight: '700', fontSize: 15 },
+  offboardingButton: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA',
+    paddingVertical: 14, borderRadius: 12,
+  },
+  offboardingText: { color: '#DC2626', fontWeight: '600', fontSize: 15 },
 });
