@@ -8,11 +8,7 @@ export default function TabLayout() {
         tabBarActiveTintColor: '#2563EB',
         tabBarInactiveTintColor: '#64748B',
         headerShown: false,
-        tabBarStyle: {
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 8,
-        },
+        tabBarStyle: { height: 60, paddingBottom: 8, paddingTop: 8 },
       }}
     >
       <Tabs.Screen
@@ -36,7 +32,6 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          href: '/profile',
           title: 'Profil',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-outline" size={size} color={color} />

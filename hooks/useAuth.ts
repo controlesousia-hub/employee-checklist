@@ -1,45 +1,36 @@
 import { useEffect, useState } from 'react';
-import { supabase, getCurrentSession } from '../lib/supabase';
 import type { Session, User } from '@supabase/supabase-js';
+import { supabase, getCurrentSession } from '../lib/supabase';
 
 type AuthState =
   | { status: 'loading' }
   | { status: 'authenticated'; session: Session; user: User }
   | { status: 'unauthenticated' };
 
-/**
- * Hook d'authentification global.
- * Gère : état de chargement, session courante, écoute des changements.
- */
 export function useAuth() {
   const [state, setState] = useState<AuthState>({ status: 'loading' });
 
   useEffect(() => {
     let mounted = true;
 
-    // 1. Récupérer la session au démarrage
     (async () => {
       const session = await getCurrentSession();
       if (!mounted) return;
-
-      if (session) {
-        setState({ status: 'authenticated', session, user: session.user });
-      } else {
-        setState({ status: 'unauthenticated' });
-      }
+      setState(
+        session
+          ? { status: 'authenticated', session, user: session.user }
+          : { status: 'unauthenticated' }
+      );
     })();
 
-    // 2. Écouter les changements (login, logout, refresh token)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (!mounted) return;
-        if (session) {
-          setState({ status: 'authenticated', session, user: session.user });
-        } else {
-          setState({ status: 'unauthenticated' });
-        }
-      }
-    );
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+      setState(
+        session
+          ? { status: 'authenticated', session, user: session.user }
+          : { status: 'unauthenticated' }
+      );
+    });
 
     return () => {
       mounted = false;

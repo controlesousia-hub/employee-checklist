@@ -7,22 +7,18 @@ export default function RootLayout() {
   const { isLoading, isAuthenticated } = useAuth();
   const segments = useSegments();
 
-  // Redirection automatique selon l'état d'auth
   useEffect(() => {
     if (isLoading) return;
 
-    const inAuthGroup = segments[0] === 'login';
+    const inLogin = segments[0] === 'login';
 
-    if (!isAuthenticated && !inAuthGroup) {
-      // Pas connecté → rediriger vers login
+    if (!isAuthenticated && !inLogin) {
       router.replace('/login');
-    } else if (isAuthenticated && inAuthGroup) {
-      // Connecté mais sur la page login → rediriger vers l'app
+    } else if (isAuthenticated && inLogin) {
       router.replace('/(tabs)');
     }
   }, [isAuthenticated, isLoading, segments]);
 
-  // Écran de chargement pendant la restauration de session
   if (isLoading) {
     return (
       <View style={styles.loading}>
@@ -35,7 +31,6 @@ export default function RootLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="login" />
       <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="profile" />
     </Stack>
   );
 }
