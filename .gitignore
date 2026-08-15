@@ -7,179 +7,41 @@ node_modules/
 .env.local
 .env.*
 
-# Logs
+# Logs and temp files
 *.log
-
-# Editor/IDE
-.vscode/
-.idea/
-*.swp
-*.swo
 *.tmp
 
-# Build artifacts
-dist/
-build/
-target/
+# Editors
+.vscode/
+.idea/
 
 # Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.so
-*.egg-info/
-.eggs/
-.coverage
-htmlcov/
-.coverage.*
-.pytest_cache/
-.mypy_cache/
-.tox/
-nox/
-*.mo
-*.pot
 
-# Java
-*.class
-*.jar
-*.war
-*.ear
-*.nar
-target/
-.gradle/
+# Build outputs
+dist/
 build/
-bin/
-gen/
-
-# C/C++
-*.o
-*.a
-*.obj
-*.lib
-*.so
-*.dll
-*.dylib
-*.exe
-*.out
-*.app
-*.iobj
-*.ipdb
-
-# Go
-*.o
-*.so
-*.dll
-*.dylib
-*.exe
-*.test
-*.prof
-
-# Rust
-*.o
-*.rlib
-*.so
-*.dylib
-*.dll
-target/
-
-# Ruby
-*.gem
-*.rbc
-.bundle/
-vendor/bundle/
-.ruby-version
-.rbenv-vars
-*.lock
-
-# Node.js
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-node_modules/
-jspm_packages/
-typings/
-.npm
-.yarn-integrity
-.yarn-metadata.json
-.nyc_output/
-coverage/
-.nyc_output/
-istanbul/
-.lintcache/
-.eslintcache
-
-# Web
-*.css.map
-*.js.map
-*.min.css
 *.min.js
+*.bundle.js
 
 # OS generated files
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
-desktop.ini
-Icon?
-VolumeIcon.icns
 
-# IDE
-*.swp
-*.swo
-*~
-.project
-.idea/
-.vscode/
-*.tmproj
-*.sublime-project
-*.sublime-workspace
-nbproject/
-nbbuild/
-nbdist/
-.nb-gradle/
-
-# Testing
-*.log
-logs/
-*.gcda
-*.gcno
+# Coverage
 coverage/
 htmlcov/
-.coverage*
+.coverage
 
-# Distribution / packaging
-.Python
-*.egg
-*.tar.gz
-*.whl
-*.zip
-*.gz
-*.tar
-*.tgz
-*.bz2
-*.xz
-*.7z
-*.rar
-*.zst
-*.lz4
-*.lzh
-*.cab
-*.arj
-*.rpm
-*.deb
-*.Z
-*.lz
-*.lzo
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.tar.zst
+# IDE
+.vs/
+*.swp
+*.swo
 
-# System
-.DS_Store
-Thumbs.db
+# Temporary
+*.tmp
+*.temp
 ```
