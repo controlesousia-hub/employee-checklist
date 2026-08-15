@@ -1,23 +1,36 @@
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 
 export default function ProfileScreen() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = () => {
-    Alert.alert('Déconnexion', 'Voulez-vous vraiment vous déconnecter ?', [
-      { text: 'Annuler', style: 'cancel' },
-      {
-        text: 'Se déconnecter',
-        style: 'destructive',
-        onPress: async () => {
-          await supabase.auth.signOut();
+    Alert.alert(
+      'Déconnexion',
+      'Voulez-vous vraiment vous déconnecter ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Se déconnecter',
+          style: 'destructive',
+          onPress: async () => {
+            setIsLoggingOut(true);
+            try {
+              await logout();
+              // L'Auth Guard (app/_layout.tsx) redirige automatiquement vers /login
+            } catch (e) {
+              console.error('[Profile] logout failed:', e);
+              Alert.alert('Erreur', 'Impossible de se déconnecter. Réessayez.');
+              setIsLoggingOut(false);
+            }
+          },
         },
-      },
-    ]);
+      ]
+    );
   };
 
   return (
@@ -32,10 +45,34 @@ export default function ProfileScreen() {
         </View>
 
         <Text style={styles.email}>{user?.email ?? 'Utilisateur'}</Text>
+        <Text style={styles.subtitle}>
+          Connecté en tant qu'administrateur
+        </Text>
 
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={22} color="#DC2626" />
-          <Text style={styles.logoutText}>Se déconnecter</Text>
+        <View style={styles.infoCard}>
+          <View style={styles.infoRow}>
+            <Ionicons name="shield-checkmark" size={20} color="#2563EB" />
+            <Text style={styles.infoText}>Session sécurisée</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Ionicons name="lock-closed" size={20} color="#2563EB" />
+            <Text style={styles.infoText}>Données chiffrées</Text>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.logoutButton, isLoggingOut && styles.logoutButtonDisabled]}
+          onPress={handleLogout}
+          disabled={isLoggingOut}
+        >
+          {isLoggingOut ? (
+            <ActivityIndicator color="#DC2626" />
+          ) : (
+            <>
+              <Ionicons name="log-out-outline" size={22} color="#DC2626" />
+              <Text style={styles.logoutText}>Se déconnecter</Text>
+            </>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -63,7 +100,24 @@ const styles = StyleSheet.create({
     marginTop: 40,
     marginBottom: 16,
   },
-  email: { fontSize: 16, fontWeight: '700', color: '#0F172A', marginBottom: 40 },
+  email: { fontSize: 16, fontWeight: '700', color: '#0F172A', marginBottom: 4 },
+  subtitle: { fontSize: 13, color: '#64748B', marginBottom: 30 },
+  infoCard: {
+    width: '100%',
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 30,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+  },
+  infoText: { fontSize: 14, color: '#475569', fontWeight: '500' },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -73,6 +127,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     width: '100%',
     gap: 8,
+    borderWidth: 1,
+    borderColor: '#FECACA',
   },
+  logoutButtonDisabled: { opacity: 0.6 },
   logoutText: { color: '#DC2626', fontWeight: '600', fontSize: 15 },
 });

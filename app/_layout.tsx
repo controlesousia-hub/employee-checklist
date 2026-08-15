@@ -10,11 +10,13 @@ export default function RootLayout() {
   useEffect(() => {
     if (isLoading) return;
 
-    const inLogin = segments[0] === 'login';
+    const inAuthGroup = segments[0] === 'login';
 
-    if (!isAuthenticated && !inLogin) {
+    if (!isAuthenticated && !inAuthGroup) {
+      // Pas connecté et pas sur login → redirection
       router.replace('/login');
-    } else if (isAuthenticated && inLogin) {
+    } else if (isAuthenticated && inAuthGroup) {
+      // Connecté mais sur login → vers l'app
       router.replace('/(tabs)');
     }
   }, [isAuthenticated, isLoading, segments]);
@@ -29,8 +31,8 @@ export default function RootLayout() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="login" />
-      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="login" options={{ gestureEnabled: false }} />
+      <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
     </Stack>
   );
 }
