@@ -7,9 +7,13 @@ import { supabase } from '../../lib/supabase';
 import { useTasks } from '../../hooks/useTasks';
 import TaskCard from '../../components/TaskCard';
 import {
-  Employee, EmployeeStatus,
-  EMPLOYEE_STATUS_LABELS, EMPLOYEE_STATUS_COLORS, formatDate,
+  Employee,
+  EmployeeStatus,
+  EMPLOYEE_STATUS_LABELS,
+  EMPLOYEE_STATUS_COLORS,
+  formatDate,
 } from '../../components/EmployeeCard';
+import { createNotification } from '../../lib/notify';
 
 const STATUS_OPTIONS: EmployeeStatus[] = ['ONBOARDING', 'ACTIVE', 'OFFBOARDING', 'OFFBOARDED'];
 
@@ -57,12 +61,24 @@ export default function EmployeeDetailScreen() {
     if (employee.status === 'ONBOARDING') {
       Alert.alert("Valider l'onboarding", 'Passer cet employé en "Actif" ?', [
         { text: 'Annuler', style: 'cancel' },
-        { text: 'Valider', onPress: () => updateEmployeeStatus('ACTIVE') },
+        {
+          text: 'Valider',
+          onPress: async () => {
+            await updateEmployeeStatus('ACTIVE');
+            createNotification('ONBOARDING_COMPLETED', 'Onboarding terminé', employee.full_name);
+          },
+        },
       ]);
     } else if (employee.status === 'OFFBOARDING') {
       Alert.alert('Valider le départ', 'Marquer cet employé comme "Parti" ?', [
         { text: 'Annuler', style: 'cancel' },
-        { text: 'Valider', onPress: () => updateEmployeeStatus('OFFBOARDED') },
+        {
+          text: 'Valider',
+          onPress: async () => {
+            await updateEmployeeStatus('OFFBOARDED');
+            createNotification('OFFBOARDING_COMPLETED', 'Départ validé', employee.full_name);
+          },
+        },
       ]);
     }
   };
@@ -71,7 +87,7 @@ export default function EmployeeDetailScreen() {
     if (!employee) return;
     Alert.alert(
       "Démarrer l'offboarding",
-      'Générer la checklist de départ et passer l\'employé en "Offboarding" ?',
+      "Générer la checklist de départ et passer l'employé en \"Offboarding\" ?",
       [
         { text: 'Annuler', style: 'cancel' },
         {
@@ -107,6 +123,7 @@ export default function EmployeeDetailScreen() {
               }
 
               await updateEmployeeStatus('OFFBOARDING');
+              createNotification('OFFBOARDING_STARTED', 'Offboarding démarré', employee.full_name);
               refresh();
             } finally {
               setGenerating(false);
@@ -144,7 +161,9 @@ export default function EmployeeDetailScreen() {
           <Text style={styles.name}>{employee.full_name}</Text>
           {employee.position ? <Text style={styles.info}>{employee.position}</Text> : null}
           {employee.email ? <Text style={styles.info}>{employee.email}</Text> : null}
-          {employee.start_date ? <Text style={styles.info}>Arrivée le {formatDate(employee.start_date)}</Text> : null}
+          {employee.start_date ? (
+            <Text style={styles.info}>Arrivée le {formatDate(employee.start_date)}</Text>
+          ) : null}
 
           <View style={styles.statusRow}>
             {STATUS_OPTIONS.map(status => (
@@ -238,9 +257,14 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
   notFound: { textAlign: 'center', marginTop: 60, color: '#64748B' },
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 14,
-    backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#E2E8F0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
   },
   headerTitle: { fontSize: 17, fontWeight: '700', color: '#0F172A', flex: 1, textAlign: 'center', marginHorizontal: 8 },
   content: { padding: 16 },
@@ -252,8 +276,13 @@ const styles = StyleSheet.create({
   statusChipText: { fontSize: 12, fontWeight: '600', color: '#475569' },
   statusChipTextActive: { color: '#ffffff' },
   workflowBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#FEF3C7', borderRadius: 12, padding: 12, marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FEF3C7',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
   },
   workflowBannerText: { fontSize: 13, fontWeight: '600', color: '#B45309' },
   progressCard: { backgroundColor: '#F1F5F9', borderRadius: 12, padding: 14, marginBottom: 16 },
@@ -266,14 +295,25 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 14, color: '#64748B', textAlign: 'center', marginTop: 10 },
   actions: { marginTop: 20, gap: 10 },
   validateButton: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#2563EB', paddingVertical: 14, borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#2563EB',
+    paddingVertical: 14,
+    borderRadius: 12,
   },
   validateText: { color: '#ffffff', fontWeight: '700', fontSize: 15 },
   offboardingButton: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA',
-    paddingVertical: 14, borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    paddingVertical: 14,
+    borderRadius: 12,
   },
   offboardingText: { color: '#DC2626', fontWeight: '600', fontSize: 15 },
 });

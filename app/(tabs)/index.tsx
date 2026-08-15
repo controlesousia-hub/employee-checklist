@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 import TaskCard, { Task, TaskStatus } from '../../components/TaskCard';
 import { supabase } from '../../lib/supabase';
+import NotificationBell from '../../components/NotificationBell';
 
 export default function DashboardScreen() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -16,7 +17,9 @@ export default function DashboardScreen() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      if (data) setTasks(data as Task[]);
+      if (data) {
+        setTasks(data as Task[]);
+      }
     } catch (err) {
       console.error('Erreur lors du chargement des tâches :', err);
     } finally {
@@ -45,14 +48,18 @@ export default function DashboardScreen() {
     }
   };
 
-  const progress = tasks.length === 0 
-    ? 0 
+  const progress = tasks.length === 0
+    ? 0
     : Math.round((tasks.filter(t => t.status === 'DONE').length / tasks.length) * 100);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Tableau de bord</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>Tableau de bord</Text>
+          <NotificationBell />
+        </View>
+
         <View style={styles.progressContainer}>
           <View style={styles.progressLabelRow}>
             <Text style={styles.progressLabel}>Avancement global</Text>
@@ -75,9 +82,12 @@ export default function DashboardScreen() {
           )}
           contentContainerStyle={styles.list}
           refreshControl={
-            <RefreshControl 
-              refreshing={refreshing} 
-              onRefresh={() => { setRefreshing(true); fetchTasks(); }} 
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                fetchTasks();
+              }}
             />
           }
         />
@@ -99,11 +109,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   title: {
     fontSize: 24,
     fontWeight: '800',
     color: '#0F172A',
-    marginBottom: 16,
   },
   progressContainer: {
     backgroundColor: '#F1F5F9',

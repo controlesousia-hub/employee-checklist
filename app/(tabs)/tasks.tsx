@@ -8,11 +8,13 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
-  Alert
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import TaskCard, { Task, TaskStatus, Department } from '../../components/TaskCard';
 import { supabase } from '../../lib/supabase';
+import NotificationBell from '../../components/NotificationBell';
+import { createNotification } from '../../lib/notify';
 
 export default function TasksScreen() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -88,6 +90,7 @@ export default function TasksScreen() {
       },
     ]);
 
+    // Notification email via la passerelle serveur (Supabase → Make)
     if (!error) {
       try {
         await supabase.functions.invoke('notify-make', {
@@ -101,7 +104,7 @@ export default function TasksScreen() {
           },
         });
       } catch (err) {
-        console.log("Erreur lors de l'envoi du webhook :", err);
+        console.log('Erreur de notification (non bloquante) :', err);
       }
     }
 
@@ -110,6 +113,7 @@ export default function TasksScreen() {
     if (error) {
       Alert.alert('Erreur', 'Impossible de créer la tâche');
     } else {
+      createNotification('TASK_CREATED', 'Nouvelle tâche', `${title.trim()} • ${employeeName.trim()}`);
       setTitle('');
       setEmployeeName('');
       setModalVisible(false);
@@ -122,12 +126,15 @@ export default function TasksScreen() {
       <View style={styles.header}>
         <View style={styles.headerTitleRow}>
           <Text style={styles.title}>Gestion des Tâches</Text>
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => setModalVisible(true)}
-          >
-            <Ionicons name="add" size={24} color="#ffffff" />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <NotificationBell />
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => setModalVisible(true)}
+            >
+              <Ionicons name="add" size={24} color="#ffffff" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.filterRow}>
@@ -258,6 +265,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   title: {
     fontSize: 24,

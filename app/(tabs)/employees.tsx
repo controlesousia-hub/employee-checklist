@@ -1,18 +1,28 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Modal, TextInput, ActivityIndicator, Alert, ScrollView,
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  Modal,
+  TextInput,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import EmployeeCard, { Employee } from '../../components/EmployeeCard';
+import type { Department } from '../../components/TaskCard';
 import { supabase } from '../../lib/supabase';
+import NotificationBell from '../../components/NotificationBell';
+import { createNotification } from '../../lib/notify';
 
 interface TemplateOption {
   id: string;
   name: string;
-  type: 'ONBOARDING' | 'OFFBOARDING';
 }
 
 export default function EmployeesScreen() {
@@ -43,14 +53,12 @@ export default function EmployeesScreen() {
   const fetchTemplates = useCallback(async () => {
     const { data } = await supabase
       .from('templates')
-      .select('id, name, type')
+      .select('id, name')
       .order('created_at');
 
-    if (data) {
-      // À la création d'un employé, on ne propose que les templates d'ONBOARDING
-      const onboarding = (data as TemplateOption[]).filter(t => t.type === 'ONBOARDING');
-      setTemplates(onboarding);
-      if (onboarding.length > 0) setSelectedTemplateId(onboarding[0].id);
+    if (data && data.length > 0) {
+      setTemplates(data as TemplateOption[]);
+      setSelectedTemplateId(data[0].id);
     }
   }, []);
 
@@ -90,6 +98,7 @@ export default function EmployeesScreen() {
       return;
     }
 
+    // Génération automatique des tâches depuis le template choisi
     let generated = 0;
     if (selectedTemplateId !== 'NONE') {
       const { data: items } = await supabase
@@ -101,7 +110,7 @@ export default function EmployeesScreen() {
       if (items && items.length > 0) {
         const tasksToInsert = items.map(it => ({
           title: it.title,
-          department: it.department,
+          department: it.department as Department,
           employee_name: emp.full_name,
           status: 'TODO' as const,
           workflow: 'ONBOARDING' as const,
@@ -113,18 +122,17 @@ export default function EmployeesScreen() {
     }
 
     setSubmitting(false);
+    createNotification(
+      'ONBOARDING_STARTED',
+      'Onboarding démarré',
+      `${fullName.trim()} • ${generated} tâches générées`
+    );
     setFullName('');
     setPosition('');
     setEmail('');
     setStartDate('');
     setModalVisible(false);
     fetchEmployees();
-    Alert.alert(
-      'Succès',
-      generated > 0
-        ? `Employé créé • ${generated} tâches d'onboarding générées`
-        : 'Employé créé'
-    );
   };
 
   return (
@@ -132,9 +140,12 @@ export default function EmployeesScreen() {
       <View style={styles.header}>
         <View style={styles.headerTitleRow}>
           <Text style={styles.title}>Employés</Text>
-          <TouchableOpacity style={styles.addButton} onPress={() => setModalVisible(true)}>
-            <Ionicons name="add" size={24} color="#ffffff" />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <NotificationBell />
+            <TouchableOpacity style={styles.addButton} onPress={() => setModalVisible(true)}>
+              <Ionicons name="add" size={24} color="#ffffff" />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -164,16 +175,38 @@ export default function EmployeesScreen() {
               <Text style={styles.modalTitle}>Nouvel Employé</Text>
 
               <Text style={styles.label}>Nom complet *</Text>
-              <TextInput style={styles.input} placeholder="ex: Alex Martin" value={fullName} onChangeText={setFullName} />
+              <TextInput
+                style={styles.input}
+                placeholder="ex: Alex Martin"
+                value={fullName}
+                onChangeText={setFullName}
+              />
 
               <Text style={styles.label}>Poste</Text>
-              <TextInput style={styles.input} placeholder="ex: Développeur web" value={position} onChangeText={setPosition} />
+              <TextInput
+                style={styles.input}
+                placeholder="ex: Développeur web"
+                value={position}
+                onChangeText={setPosition}
+              />
 
               <Text style={styles.label}>Email</Text>
-              <TextInput style={styles.input} placeholder="ex: alex@entreprise.fr" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
+              <TextInput
+                style={styles.input}
+                placeholder="ex: alex@entreprise.fr"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
 
               <Text style={styles.label}>Date d'arrivée (AAAA-MM-JJ)</Text>
-              <TextInput style={styles.input} placeholder="ex: 2025-09-01" value={startDate} onChangeText={setStartDate} />
+              <TextInput
+                style={styles.input}
+                placeholder="ex: 2025-09-01"
+                value={startDate}
+                onChangeText={setStartDate}
+              />
 
               <Text style={styles.label}>Template d'onboarding</Text>
               <ScrollView horizontal showsVerticalScrollIndicator={false} style={{ marginBottom: 16 }}>
@@ -226,10 +259,15 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E2E8F0',
   },
   headerTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   title: { fontSize: 24, fontWeight: '800', color: '#0F172A' },
   addButton: {
-    backgroundColor: '#2563EB', width: 40, height: 40, borderRadius: 20,
-    justifyContent: 'center', alignItems: 'center',
+    backgroundColor: '#2563EB',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   list: { padding: 16 },
   empty: { alignItems: 'center', marginTop: 80, paddingHorizontal: 40 },
@@ -240,13 +278,21 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 20, fontWeight: '700', marginBottom: 16, color: '#0F172A' },
   label: { fontSize: 13, fontWeight: '600', color: '#475569', marginBottom: 6 },
   input: {
-    borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 8,
-    paddingHorizontal: 12, paddingVertical: 10, marginBottom: 14, fontSize: 14,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 14,
+    fontSize: 14,
   },
   templateRow: { flexDirection: 'row', gap: 8 },
   templateChip: {
-    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20,
-    borderWidth: 1, borderColor: '#CBD5E1',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
   },
   templateChipActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
   templateChipText: { fontSize: 12, fontWeight: '600', color: '#475569' },
