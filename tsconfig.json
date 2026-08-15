@@ -3,6 +3,12 @@
   "compilerOptions": {
     "strict": true,
     "types": ["node"],
-    "moduleResolution": "bundler"
-  }
+    "moduleResolution": "bundler",
+    "jsx": "react-native",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "exclude": ["supabase/functions"]
 }
