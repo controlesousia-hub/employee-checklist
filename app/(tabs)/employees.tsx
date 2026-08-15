@@ -1,15 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  Modal,
-  TextInput,
-  ActivityIndicator,
-  Alert,
-  ScrollView,
+  View, Text, StyleSheet, FlatList, TouchableOpacity,
+  Modal, TextInput, ActivityIndicator, Alert, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -94,7 +86,7 @@ export default function EmployeesScreen() {
 
     if (error || !emp) {
       setSubmitting(false);
-      Alert.alert('Erreur', "Impossible de créer l'employé");
+      Alert.alert('Erreur', error?.message ?? "Impossible de créer l'employé");
       return;
     }
 
@@ -175,38 +167,16 @@ export default function EmployeesScreen() {
               <Text style={styles.modalTitle}>Nouvel Employé</Text>
 
               <Text style={styles.label}>Nom complet *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="ex: Alex Martin"
-                value={fullName}
-                onChangeText={setFullName}
-              />
+              <TextInput style={styles.input} placeholder="ex: Alex Martin" value={fullName} onChangeText={setFullName} />
 
               <Text style={styles.label}>Poste</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="ex: Développeur web"
-                value={position}
-                onChangeText={setPosition}
-              />
+              <TextInput style={styles.input} placeholder="ex: Développeur web" value={position} onChangeText={setPosition} />
 
               <Text style={styles.label}>Email</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="ex: alex@entreprise.fr"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-              />
+              <TextInput style={styles.input} placeholder="ex: alex@entreprise.fr" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
 
               <Text style={styles.label}>Date d'arrivée (AAAA-MM-JJ)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="ex: 2025-09-01"
-                value={startDate}
-                onChangeText={setStartDate}
-              />
+              <TextInput style={styles.input} placeholder="ex: 2025-09-01" value={startDate} onChangeText={setStartDate} />
 
               <Text style={styles.label}>Template d'onboarding</Text>
               <ScrollView horizontal showsVerticalScrollIndicator={false} style={{ marginBottom: 16 }}>
@@ -262,12 +232,8 @@ const styles = StyleSheet.create({
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   title: { fontSize: 24, fontWeight: '800', color: '#0F172A' },
   addButton: {
-    backgroundColor: '#2563EB',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: '#2563EB', width: 40, height: 40, borderRadius: 20,
+    justifyContent: 'center', alignItems: 'center',
   },
   list: { padding: 16 },
   empty: { alignItems: 'center', marginTop: 80, paddingHorizontal: 40 },
@@ -278,21 +244,13 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 20, fontWeight: '700', marginBottom: 16, color: '#0F172A' },
   label: { fontSize: 13, fontWeight: '600', color: '#475569', marginBottom: 6 },
   input: {
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 14,
-    fontSize: 14,
+    borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 8,
+    paddingHorizontal: 12, paddingVertical: 10, marginBottom: 14, fontSize: 14,
   },
   templateRow: { flexDirection: 'row', gap: 8 },
   templateChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20,
+    borderWidth: 1, borderColor: '#CBD5E1',
   },
   templateChipActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
   templateChipText: { fontSize: 12, fontWeight: '600', color: '#475569' },
