@@ -9,14 +9,11 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (isLoading) return;
+    const inLogin = segments[0] === 'login';
 
-    const inAuthGroup = segments[0] === 'login';
-
-    if (!isAuthenticated && !inAuthGroup) {
-      // Pas connecté et pas sur login → redirection
+    if (!isAuthenticated && !inLogin) {
       router.replace('/login');
-    } else if (isAuthenticated && inAuthGroup) {
-      // Connecté mais sur login → vers l'app
+    } else if (isAuthenticated && inLogin) {
       router.replace('/(tabs)');
     }
   }, [isAuthenticated, isLoading, segments]);
@@ -31,17 +28,12 @@ export default function RootLayout() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="login" options={{ gestureEnabled: false }} />
-      <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
+      <Stack.Screen name="login" />
+      <Stack.Screen name="(tabs)" />
     </Stack>
   );
 }
 
 const styles = StyleSheet.create({
-  loading: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-  },
+  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
 });
