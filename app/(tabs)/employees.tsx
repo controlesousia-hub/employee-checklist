@@ -1,17 +1,26 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Modal, TextInput, ActivityIndicator, Alert,
+  Modal, TextInput, ActivityIndicator, Alert, ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import EmployeeCard, { Employee } from '../../components/EmployeeCard';
+import type { Department } from '../../components/TaskCard';
 import { supabase } from '../../lib/supabase';
+
+interface TemplateOption {
+  id: string;
+  name: string;
+}
 
 export default function EmployeesScreen() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [templates, setTemplates] = useState<TemplateOption[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('NONE');
 
   const [isModalVisible, setModalVisible] = useState(false);
   const [fullName, setFullName] = useState('');
@@ -31,9 +40,22 @@ export default function EmployeesScreen() {
     setLoading(false);
   }, []);
 
+  const fetchTemplates = useCallback(async () => {
+    const { data } = await supabase
+      .from('templates')
+      .select('id, name')
+      .order('created_at');
+
+    if (data && data.length > 0) {
+      setTemplates(data as TemplateOption[]);
+      setSelectedTemplateId(data[0].id);
+    }
+  }, []);
+
   useEffect(() => {
     fetchEmployees();
-  }, [fetchEmployees]);
+    fetchTemplates();
+  }, [fetchEmployees, fetchTemplates]);
 
   const handleAddEmployee = async () => {
     if (!fullName.trim()) {
@@ -46,26 +68,61 @@ export default function EmployeesScreen() {
     }
 
     setSubmitting(true);
-    const { error } = await supabase.from('employees').insert([
-      {
-        full_name: fullName.trim(),
-        position: position.trim() || null,
-        email: email.trim() || null,
-        start_date: startDate || null,
-      },
-    ]);
-    setSubmitting(false);
 
-    if (error) {
+    const { data: emp, error } = await supabase
+      .from('employees')
+      .insert([
+        {
+          full_name: fullName.trim(),
+          position: position.trim() || null,
+          email: email.trim() || null,
+          start_date: startDate || null,
+        },
+      ])
+      .select()
+      .maybeSingle();
+
+    if (error || !emp) {
+      setSubmitting(false);
       Alert.alert('Erreur', "Impossible de créer l'employé");
-    } else {
-      setFullName('');
-      setPosition('');
-      setEmail('');
-      setStartDate('');
-      setModalVisible(false);
-      fetchEmployees();
+      return;
     }
+
+    // Génération automatique des tâches depuis le template choisi
+    let generated = 0;
+    if (selectedTemplateId !== 'NONE') {
+      const { data: items } = await supabase
+        .from('template_items')
+        .select('title, department, sort_order')
+        .eq('template_id', selectedTemplateId)
+        .order('sort_order');
+
+      if (items && items.length > 0) {
+        const tasksToInsert = items.map(it => ({
+          title: it.title,
+          department: it.department as Department,
+          employee_name: emp.full_name,
+          status: 'TODO' as const,
+        }));
+
+        const { error: tasksError } = await supabase.from('tasks').insert(tasksToInsert);
+        if (!tasksError) generated = tasksToInsert.length;
+      }
+    }
+
+    setSubmitting(false);
+    setFullName('');
+    setPosition('');
+    setEmail('');
+    setStartDate('');
+    setModalVisible(false);
+    fetchEmployees();
+    Alert.alert(
+      'Succès',
+      generated > 0
+        ? `Employé créé • ${generated} tâches générées automatiquement`
+        : 'Employé créé'
+    );
   };
 
   return (
@@ -100,30 +157,57 @@ export default function EmployeesScreen() {
 
       <Modal visible={isModalVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Nouvel Employé</Text>
+          <ScrollView>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Nouvel Employé</Text>
 
-            <Text style={styles.label}>Nom complet *</Text>
-            <TextInput style={styles.input} placeholder="ex: Alex Martin" value={fullName} onChangeText={setFullName} />
+              <Text style={styles.label}>Nom complet *</Text>
+              <TextInput style={styles.input} placeholder="ex: Alex Martin" value={fullName} onChangeText={setFullName} />
 
-            <Text style={styles.label}>Poste</Text>
-            <TextInput style={styles.input} placeholder="ex: Développeur web" value={position} onChangeText={setPosition} />
+              <Text style={styles.label}>Poste</Text>
+              <TextInput style={styles.input} placeholder="ex: Développeur web" value={position} onChangeText={setPosition} />
 
-            <Text style={styles.label}>Email</Text>
-            <TextInput style={styles.input} placeholder="ex: alex@entreprise.fr" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
+              <Text style={styles.label}>Email</Text>
+              <TextInput style={styles.input} placeholder="ex: alex@entreprise.fr" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
 
-            <Text style={styles.label}>Date d'arrivée (AAAA-MM-JJ)</Text>
-            <TextInput style={styles.input} placeholder="ex: 2025-09-01" value={startDate} onChangeText={setStartDate} />
+              <Text style={styles.label}>Date d'arrivée (AAAA-MM-JJ)</Text>
+              <TextInput style={styles.input} placeholder="ex: 2025-09-01" value={startDate} onChangeText={setStartDate} />
 
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => setModalVisible(false)}>
-                <Text style={styles.cancelText}>Annuler</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.saveButton} onPress={handleAddEmployee} disabled={submitting}>
-                {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Créer</Text>}
-              </TouchableOpacity>
+              <Text style={styles.label}>Template de checklist</Text>
+              <ScrollView horizontal showsVerticalScrollIndicator={false} style={{ marginBottom: 16 }}>
+                <View style={styles.templateRow}>
+                  <TouchableOpacity
+                    style={[styles.templateChip, selectedTemplateId === 'NONE' && styles.templateChipActive]}
+                    onPress={() => setSelectedTemplateId('NONE')}
+                  >
+                    <Text style={[styles.templateChipText, selectedTemplateId === 'NONE' && styles.templateChipTextActive]}>
+                      Sans template
+                    </Text>
+                  </TouchableOpacity>
+                  {templates.map(t => (
+                    <TouchableOpacity
+                      key={t.id}
+                      style={[styles.templateChip, selectedTemplateId === t.id && styles.templateChipActive]}
+                      onPress={() => setSelectedTemplateId(t.id)}
+                    >
+                      <Text style={[styles.templateChipText, selectedTemplateId === t.id && styles.templateChipTextActive]}>
+                        {t.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={styles.cancelButton} onPress={() => setModalVisible(false)}>
+                  <Text style={styles.cancelText}>Annuler</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.saveButton} onPress={handleAddEmployee} disabled={submitting}>
+                  {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Créer</Text>}
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+          </ScrollView>
         </View>
       </Modal>
     </SafeAreaView>
@@ -157,6 +241,14 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 8,
     paddingHorizontal: 12, paddingVertical: 10, marginBottom: 14, fontSize: 14,
   },
+  templateRow: { flexDirection: 'row', gap: 8 },
+  templateChip: {
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20,
+    borderWidth: 1, borderColor: '#CBD5E1',
+  },
+  templateChipActive: { backgroundColor: '#2563EB', borderColor: '#2563EB' },
+  templateChipText: { fontSize: 12, fontWeight: '600', color: '#475569' },
+  templateChipTextActive: { color: '#ffffff' },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 8 },
   cancelButton: { paddingHorizontal: 16, paddingVertical: 10 },
   cancelText: { color: '#64748B', fontWeight: '600' },

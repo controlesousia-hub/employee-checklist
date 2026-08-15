@@ -4,6 +4,7 @@ import type { Task, TaskStatus } from '../components/TaskCard';
 
 interface UseTasksOptions {
   employeeName?: string | null;
+  employeeId?: string | null;
   enabled?: boolean;
 }
 
@@ -13,13 +14,20 @@ export function useTasks(options?: UseTasksOptions) {
 
   const enabled = options?.enabled ?? true;
   const employeeName = options?.employeeName ?? null;
+  const employeeId = options?.employeeId ?? null;
 
   const fetchTasks = useCallback(async () => {
     if (!enabled) return;
     let query = supabase.from('tasks').select('*').order('created_at', { ascending: false });
-    if (employeeName) {
-      query = query.eq('employee_name', employeeName);
+
+    if (employeeId || employeeName) {
+      const conditions = [
+        employeeId ? `employee_id.eq.${employeeId}` : null,
+        employeeName ? `employee_name.eq.${employeeName}` : null,
+      ].filter(Boolean).join(',');
+      query = query.or(conditions);
     }
+
     const { data, error } = await query;
     if (error) {
       console.error('Erreur de chargement des tâches :', error);
@@ -27,7 +35,7 @@ export function useTasks(options?: UseTasksOptions) {
       setTasks(data as Task[]);
     }
     setLoading(false);
-  }, [enabled, employeeName]);
+  }, [enabled, employeeName, employeeId]);
 
   useEffect(() => {
     fetchTasks();
